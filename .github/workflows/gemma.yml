@@ -93,7 +93,7 @@ jobs:
           git config --global user.email "${{ github.repository_owner }}@users.noreply.github.com"
           
           # Commit and push
-          git add daily_log.txt
+          git add daily_log_gemma.txt
           git commit -m "$SENTENCE"
           git push
           
