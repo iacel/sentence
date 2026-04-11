@@ -2,14 +2,14 @@ name: Daily AI Sentence Update
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # Runs every day at 00:00 UTC
-  workflow_dispatch:      # Allows you to run it manually for testing
+    - cron: '0 0 * * *'
+  workflow_dispatch:
 
 jobs:
   generate-and-push:
     runs-on: ubuntu-latest
     permissions:
-      contents: write    # Required to push changes back to the repo
+      contents: write
 
     steps:
       - name: Checkout Repository
@@ -24,90 +24,65 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-ollama-tinyllama
 
-      - name: Debug Cache Status
-        run: |
-          echo "🔍 Cache hit: ${{ steps.cache-ollama.outputs.cache-hit }}"
-          if [ -d ~/.ollama/models ]; then
-            echo "📦 Models directory exists:"
-            ls -lh ~/.ollama/models/ 2>/dev/null || echo "   (empty or inaccessible)"
-          else
-            echo "⚠️  ~/.ollama/models does not exist yet"
-          fi
-
       - name: Install Ollama
         run: |
           if ! command -v ollama &> /dev/null; then
-            echo "⬇️  Installing Ollama..."
             curl -fsSL https://ollama.com/install.sh | sh
-          else
-            echo "✅ Ollama already installed"
           fi
 
       - name: Generate Sentence
         id: ai
         run: |
           # Start Ollama in background
-          echo "🚀 Starting Ollama server..."
-          ollama serve & 
-          OLLAMA_PID=$!
+          ollama serve &
+          sleep 5
           
-          # Wait for Ollama to be ready (health check)
-          echo "⏳ Waiting for Ollama API..."
-          max_attempts=30
-          attempt=0
-          until curl -s localhost:11434/api/tags > /dev/null 2>&1; do
-            attempt=$((attempt + 1))
-            if [ $attempt -ge $max_attempts ]; then
-              echo "❌ Ollama failed to start in time"
-              exit 1
+          # Wait for API readiness
+          for i in {1..30}; do
+            if curl -s localhost:11434/api/tags > /dev/null 2>&1; then
+              break
             fi
             sleep 2
           done
-          echo "✅ Ollama is ready"
           
-          # Only pull model if not already present
-          if ollama list 2>/dev/null | grep -q "tinyllama"; then
-            echo "✅ Model 'tinyllama' already cached locally"
-          else
-            echo "⬇️  Pulling 'tinyllama' model (first run or cache miss)..."
+          # Pull model only if needed
+          if ! ollama list 2>/dev/null | grep -q tinyllama; then
             ollama pull tinyllama
           fi
           
-          # Generate sentence
-          echo "🤖 Generating sentence..."
-          RAW_SENTENCE=$(ollama run tinyllama "Generate one short, creative random sentence. Output ONLY the sentence, no explanations or quotes.")
+          # Generate sentence - ask model for single-line output
+          RAW_SENTENCE=$(ollama run tinyllama "Generate exactly one short, creative sentence. Output ONLY the sentence text, no line breaks, no quotes, no explanations." 2>/dev/null)
           
-          # Clean: remove ANSI codes, quotes, and trim — all in one sed call to avoid pipe issues
-          CLEAN_SENTENCE=$(printf '%s' "$RAW_SENTENCE" | sed -E 's/\x1b\[[0-9;]*[a-zA-Z]//g; s/\r//g; s/^"//; s/"$//; s/^[[:space:]]+//; s/[[:space:]]+$//')
+          # Clean: remove ANSI codes, newlines, quotes, and collapse whitespace
+          CLEAN_SENTENCE=$(printf '%s' "$RAW_SENTENCE" \
+            | sed -E 's/\x1b\[[0-9;]*[a-zA-Z]//g' \  # Remove ANSI escape codes
+            | tr '\n\r' '  ' \                         # Replace newlines/carriage returns with spaces
+            | sed 's/  */ /g' \                        # Collapse multiple spaces to one
+            | sed 's/^"//;s/"$//' \                    # Remove surrounding quotes
+            | sed 's/^[[:space:]]*//;s/[[:space:]]*$//') # Trim edges
           
-          # Fallback if cleaning fails
+          # Validate
           if [ -z "$CLEAN_SENTENCE" ]; then
-            CLEAN_SENTENCE=$(printf '%s' "$RAW_SENTENCE" | tr -d '\n\r"' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-          fi
-          
-          # Validate output
-          if [ -z "$CLEAN_SENTENCE" ]; then
-            echo "❌ Generated sentence is empty. Raw output:"
-            echo "$RAW_SENTENCE"
+            echo "❌ Failed to generate valid sentence"
             exit 1
           fi
           
-          echo "✨ Cleaned sentence: $CLEAN_SENTENCE"
+          echo "✨ Generated: $CLEAN_SENTENCE"
           
-          # Save to output for next steps (properly escaped)
-          echo "sentence=${CLEAN_SENTENCE}" >> $GITHUB_OUTPUT
-          
-          # Cleanup: stop Ollama server gracefully
-          kill $OLLAMA_PID 2>/dev/null || true
+          # Write to GITHUB_OUTPUT using delimiter syntax (handles any special chars safely)
+          {
+            echo "sentence<<GITHUB_OUTPUT_DELIMITER"
+            printf '%s\n' "$CLEAN_SENTENCE"
+            echo "GITHUB_OUTPUT_DELIMITER"
+          } >> $GITHUB_OUTPUT
 
       - name: Commit and Push Changes
         run: |
           SENTENCE="${{ steps.ai.outputs.sentence }}"
           
-          # Safety check
           if [ -z "$SENTENCE" ]; then
-            echo "❌ No sentence to commit"
-            exit 1
+            echo "⚠️ No sentence generated, skipping commit"
+            exit 0
           fi
           
           # Append to log file
@@ -117,9 +92,9 @@ jobs:
           git config --global user.name "${{ github.repository_owner }}"
           git config --global user.email "${{ github.repository_owner }}@users.noreply.github.com"
           
-          # Stage, commit, push
+          # Commit and push
           git add daily_log.txt
           git commit -m "$SENTENCE"
           git push
           
-          echo "✅ Successfully committed and pushed: $SENTENCE"
+          echo "✅ Successfully committed: $SENTENCE"
