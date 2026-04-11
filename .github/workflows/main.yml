@@ -54,13 +54,8 @@ jobs:
           RAW_SENTENCE=$(ollama run tinyllama "Generate exactly one short, creative sentence. Output ONLY the sentence text, no line breaks, no quotes, no explanations." 2>/dev/null)
           
           # Clean: remove ANSI codes, newlines, quotes, and collapse whitespace
-          CLEAN_SENTENCE=$(printf '%s' "$RAW_SENTENCE" \
-            | sed -E 's/\x1b\[[0-9;]*[a-zA-Z]//g' \  # Remove ANSI escape codes
-            | tr '\n\r' '  ' \                         # Replace newlines/carriage returns with spaces
-            | sed 's/  */ /g' \                        # Collapse multiple spaces to one
-            | sed 's/^"//;s/"$//' \                    # Remove surrounding quotes
-            | sed 's/^[[:space:]]*//;s/[[:space:]]*$//') # Trim edges
-          
+          CLEAN_SENTENCE=$(printf '%s' "$RAW_SENTENCE" | tr -d '\r' | sed -E 's/\x1b\[[0-9;]*[a-zA-Z]//g; s/"/ /g; s/^[[:space:]]+|[[:space:]]+$//g; s/[[:space:]]+/ /g')
+
           # Validate
           if [ -z "$CLEAN_SENTENCE" ]; then
             echo "❌ Failed to generate valid sentence"
