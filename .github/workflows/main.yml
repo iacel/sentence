@@ -50,8 +50,13 @@ jobs:
             ollama pull tinyllama
           fi
           
-          # Generate sentence - ask model for single-line output
-          RAW_SENTENCE=$(ollama run tinyllama "Generate exactly one short, creative sentence. Output ONLY the sentence text, no line breaks, no quotes, no explanations." 2>/dev/null)
+          # Generate sentence via Ollama API - ask model for single-line output
+          RAW_SENTENCE=$(curl -s http://localhost:11434/api/generate \
+            -d '{
+              "model": "tinyllama",
+              "prompt": "Generate exactly one short, creative sentence. Output ONLY the sentence text, no line breaks, no quotes, no explanations.",
+              "stream": false
+            }' | jq -r '.response' 2>/dev/null)
           
           # Clean: remove ANSI codes, newlines, quotes, and collapse whitespace
           CLEAN_SENTENCE=$(printf '%s' "$RAW_SENTENCE" | tr -d '\r' | sed -E 's/\x1b\[[0-9;]*[a-zA-Z]//g; s/"/ /g; s/^[[:space:]]+|[[:space:]]+$//g; s/[[:space:]]+/ /g')
