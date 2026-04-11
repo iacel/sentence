@@ -77,12 +77,13 @@ jobs:
           echo "🤖 Generating sentence..."
           RAW_SENTENCE=$(ollama run tinyllama "Generate one short, creative random sentence. Output ONLY the sentence, no explanations or quotes.")
           
-          # Clean: remove ANSI codes, quotes, carriage returns, and trim whitespace
-          CLEAN_SENTENCE=$(printf '%s' "$RAW_SENTENCE" \
-            | sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' \  # Remove ANSI escape sequences
-            | tr -d '\r' \                          # Remove carriage returns
-            | sed 's/^"//;s/"$//' \                 # Remove leading/trailing double quotes
-            | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')  # Trim leading/trailing whitespace
+          # Clean: remove ANSI codes, quotes, and trim — all in one sed call to avoid pipe issues
+          CLEAN_SENTENCE=$(printf '%s' "$RAW_SENTENCE" | sed -E 's/\x1b\[[0-9;]*[a-zA-Z]//g; s/\r//g; s/^"//; s/"$//; s/^[[:space:]]+//; s/[[:space:]]+$//')
+          
+          # Fallback if cleaning fails
+          if [ -z "$CLEAN_SENTENCE" ]; then
+            CLEAN_SENTENCE=$(printf '%s' "$RAW_SENTENCE" | tr -d '\n\r"' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+          fi
           
           # Validate output
           if [ -z "$CLEAN_SENTENCE" ]; then
