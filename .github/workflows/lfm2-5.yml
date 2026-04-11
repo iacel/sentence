@@ -1,4 +1,4 @@
-name: Daily AI Sentence Update (LFM2.5-1.2B-Instruct)
+name: Daily AI Sentence Update (granite4:350m)
 
 on:
   schedule:
@@ -21,9 +21,9 @@ jobs:
       #   uses: actions/cache@v4
       #   with:
       #     path: ~/.ollama
-      #     key: ${{ runner.os }}-ollama-lfm2-5
+      #     key: ${{ runner.os }}-ollama-granite4
       #     restore-keys: |
-      #       ${{ runner.os }}-ollama-lfm2-5
+      #       ${{ runner.os }}-ollama-granite4
 
       - name: Install Ollama
         run: |
@@ -47,14 +47,14 @@ jobs:
           done
 
           # Pull model only if needed
-          if ! ollama list 2>/dev/null | grep -q LiquidAI/lfm2.5-1.2b-instruct; then
-            ollama pull LiquidAI/lfm2.5-1.2b-instruct
+          if ! ollama list 2>/dev/null | grep -q granite4:350m; then
+            ollama pull granite4:350m
           fi
 
           # Generate sentence via Ollama API - ask model for single-line output
           RAW_SENTENCE=$(curl -s http://localhost:11434/api/generate \
             -d '{
-              "model": "LiquidAI/lfm2.5-1.2b-instruct",
+              "model": "granite4:350m",
               "prompt": "Generate exactly one short, creative sentence. Output ONLY the sentence text, no line breaks, no quotes, no explanations.",
               "stream": false
             }' | jq -r '.response' 2>/dev/null)
@@ -87,14 +87,14 @@ jobs:
           fi
           
           # Append to log file
-          echo "$SENTENCE" >> daily_log_lfm2-5.txt
+          echo "$SENTENCE" >> daily_log_granite4.txt
 
           # Git identity
           git config --global user.name "${{ github.repository_owner }}"
           git config --global user.email "${{ github.repository_owner }}@users.noreply.github.com"
 
           # Commit and push
-          git add daily_log_lfm2-5.txt
+          git add daily_log_granite4.txt
           git commit -m "$SENTENCE"
           git push
           
