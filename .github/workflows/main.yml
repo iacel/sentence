@@ -42,7 +42,7 @@ jobs:
           
           # Generate sentence and clean it (remove extra whitespace/quotes)
           RAW_SENTENCE=$(ollama run tinyllama "Generate one short, creative random sentence.")
-          CLEAN_SENTENCE=$(echo "$RAW_SENTENCE" | tr -d '"' | xargs)
+          CLEAN_SENTENCE=$(echo "$RAW_SENTENCE" | sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' | tr -d '"' | xargs)
           
           # Save to output for next steps
           echo "sentence=$CLEAN_SENTENCE" >> $GITHUB_OUTPUT
