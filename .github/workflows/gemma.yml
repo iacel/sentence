@@ -1,4 +1,4 @@
-name: Daily AI Sentence Update
+name: Daily AI Sentence Update (Gemma 4 E2B)
 
 on:
   schedule:
@@ -86,7 +86,7 @@ jobs:
           fi
           
           # Append to log file
-          echo "$SENTENCE" >> daily_log.txt
+          echo "$SENTENCE" >> daily_log_gemma.txt
           
           # Git identity
           git config --global user.name "${{ github.repository_owner }}"
