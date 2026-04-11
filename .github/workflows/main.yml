@@ -15,14 +15,15 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Cache Ollama Models
-        id: cache-ollama
-        uses: actions/cache@v4
-        with:
-          path: ~/.ollama
-          key: ${{ runner.os }}-ollama-tinyllama
-          restore-keys: |
-            ${{ runner.os }}-ollama-tinyllama
+      # OPTIONAL: Cache Ollama Models (may not work reliably across runs due to ephemeral runners)
+      # - name: Cache Ollama Models
+      #   id: cache-ollama
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: ~/.ollama
+      #     key: ${{ runner.os }}-ollama-tinyllama
+      #     restore-keys: |
+      #       ${{ runner.os }}-ollama-tinyllama
 
       - name: Install Ollama
         run: |
