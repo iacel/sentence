@@ -56,8 +56,8 @@ jobs:
           echo "$SENTENCE" >> daily_log.txt
           
           # Git Identity
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "${{ github.repository_owner }}"
+          git config --global user.email "${{ github.repository_owner }}@users.noreply.github.com"
           
           # Stage, Commit, and Push
           git add daily_log.txt
